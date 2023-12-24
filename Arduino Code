@@ -1,0 +1,142 @@
+#include <Servo.h>
+#include "CTBot.h";
+
+#define pin_echo_1 D1 //define pin echo ultra sonic sensor_1
+#define pin_trig_1 D2 //define pin trig ultra sonic sensor_1
+#define pin_echo_2 D5 //define pin echo ultra sonic sensor_2
+#define pin_trig_2 D6 //define pin trig ultra sonic sensor_2
+#define pin_echo_3 D7 //define pin echo ultra sonic sensor_3
+#define pin_trig_3 D8 //define pin trig ultra sonic sensor_3
+//declare sensor pin and variabel
+int metal_sensor=D3;
+
+//define servo and pin
+Servo myservo;
+int servo_pin=D4;
+int pos_angle;
+
+//setup 3 sensor ultra sonic
+long duration,distance,separation_sensor,height_sensor_1,height_sensor_2;
+
+//setup iot for telegram
+CTBot myBot;
+String ssid = "//write your wifi name";
+String pass = "//write your wifi password";
+String token = "//write your bot telegram token";
+const int id = //write your bot telegram id;
+
+void setup() 
+{
+  Serial.begin (9600);
+  // setup for sensor
+  pinMode(metal_sensor,INPUT); //input metal sensor
+  pinMode(pin_echo_1,INPUT);//input ultrasonic sensor 1
+  pinMode(pin_trig_1,OUTPUT);//output ultrasonic sensor 1
+  pinMode(pin_echo_2,INPUT);//input ultrasonic sensor 2
+  pinMode(pin_trig_2,OUTPUT);//output ultrasonic sensor 2
+  pinMode(pin_echo_3,INPUT);//input ultrasonic sensor 3
+  pinMode(pin_trig_3,OUTPUT);//output ultrasonic sensor 3
+
+  //setup for servo
+  myservo.attach(servo_pin); 
+  myservo.write(90); // Starting Position Servo
+
+  //setup for IOT
+  myBot.wifiConnect (ssid, pass);
+  myBot.setTelegramToken (token);
+
+  //check for connection
+  if(myBot.testConnection())
+  Serial.println("connection success");
+  else
+  Serial.println("connection failed");
+}
+
+void loop() {
+  // check for any trash on input area
+  SonarSensor(pin_trig_1,pin_echo_1);
+  separation_sensor=distance;
+
+  // check for the type of the trash (metal/non metal)
+  int metal=digitalRead(metal_sensor);
+  delay(10);
+
+    if(separation_sensor<=10){
+    delay(1000);
+      if (metal==1){
+      //turn the servo motor to the metal trash bin
+      for(pos_angle=90;pos_angle<=180;pos_angle++){
+      myservo.write(pos_angle);
+      delay(15);
+      }
+
+      //turn back the servo motor
+      for(pos_angle=180;pos_angle>=90;pos_angle--)
+      {
+      myservo.write(pos_angle);
+      delay(30); 
+      }
+      delay (10);
+                    }
+      else {
+      //turn the servo motor to the non metal trash bin
+      for(pos_angle=90;pos_angle>=0;pos_angle--)
+        {  
+        myservo.write(pos_angle);
+        delay(15);
+        }
+
+      //turn back the servo motor
+      for(pos_angle=0;pos_angle<=90;pos_angle++)
+        {
+        myservo.write(pos_angle);
+        delay(25);
+        }
+      delay(10);
+             }
+    }
+    Serial.print(separation_sensor);
+        Serial.print("-");
+  Serial.print(metal);
+        Serial.print("-");
+  //height of trashbin
+  SonarSensor(pin_trig_2,pin_echo_2);
+  height_sensor_1=distance;
+
+
+      Serial.print(height_sensor_1);
+          Serial.print("-");
+
+  SonarSensor(pin_trig_3,pin_echo_3);
+  height_sensor_2=distance;
+
+
+      Serial.println(height_sensor_2);
+          delay(1000);
+
+  IOT(height_sensor_1);
+  IOT(height_sensor_2);
+  delay(1000);
+}
+
+
+
+
+void SonarSensor (int pin_trig,int pin_echo)
+{
+  digitalWrite (pin_trig,LOW);
+  delayMicroseconds(2);
+  digitalWrite (pin_trig,HIGH);
+  delayMicroseconds(10);
+  duration = pulseIn(pin_echo,HIGH);
+  distance = duration/58;
+}
+
+void IOT (int height_sensor)
+{
+  TBMessage msg;
+  if (height_sensor<10)
+  {
+    myBot.sendMessage (id, "Trash bin is full");
+  }
+}
